@@ -1,0 +1,70 @@
+name: Update Mnara Cask
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest Mnara release
+        id: release
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/Elixidra/Mnara-updates/releases/latest)
+          VERSION=$(echo "$LATEST" | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+          DMG_URL=$(echo "$LATEST" | grep '"browser_download_url"' | grep '\.dmg' | sed 's/.*"\(https[^"]*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "dmg_url=$DMG_URL" >> $GITHUB_OUTPUT
+          echo "Latest version: $VERSION"
+          echo "DMG URL: $DMG_URL"
+
+      - name: Check if update needed
+        id: check
+        run: |
+          CURRENT=$(grep 'version "' Casks/mnara.rb | sed 's/.*version "\([^"]*\)".*/\1/')
+          echo "Current version: $CURRENT"
+          echo "Latest version: ${{ steps.release.outputs.version }}"
+          if [ "$CURRENT" = "${{ steps.release.outputs.version }}" ]; then
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+          else
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download DMG and compute SHA256
+        if: steps.check.outputs.needs_update == 'true'
+        id: sha
+        run: |
+          curl -sL "${{ steps.release.outputs.dmg_url }}" -o /tmp/mnara.dmg
+          SHA=$(shasum -a 256 /tmp/mnara.dmg | awk '{print $1}')
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+          echo "SHA256: $SHA"
+
+      - name: Update cask file
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          VERSION="${{ steps.release.outputs.version }}"
+          SHA="${{ steps.sha.outputs.sha256 }}"
+          sed -i '' "s/version \"[^\"]*\"/version \"$VERSION\"/" Casks/mnara.rb
+          sed -i '' "s/sha256 \"[^\"]*\"/sha256 \"$SHA\"/" Casks/mnara.rb
+          echo "Updated cask to version $VERSION"
+          cat Casks/mnara.rb
+
+      - name: Commit and push
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/mnara.rb
+          git commit -m "Update Mnara cask to ${{ steps.release.outputs.version }}"
+          git push origin main
+
+      - name: No update needed
+        if: steps.check.outputs.needs_update == 'false'
+        run: echo "Cask is already up to date."
