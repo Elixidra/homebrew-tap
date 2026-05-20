@@ -1,6 +1,6 @@
 cask "mnara" do
-  version "1.5.2"
-  sha256 "5b106fcc9f7aa2764be2d53134036d9dbd669550d4404596308c8d48938bd319"
+  version "1.5.3"
+  sha256 "195eabe7c6ad93dc0b78b827830f1d19787f0423f157589cd39e2064f67b4561"
 
   url "https://github.com/Elixidra/Mnara-updates/releases/download/v#{version}/Mnara-#{version}.dmg"
   name "Mnara"
