@@ -23,13 +23,7 @@ jobs:
 
           VERSION=$(python3 -c "import json,sys; d=json.loads(sys.stdin.read()); print(d['tag_name'].lstrip('v'))" <<< "$LATEST")
 
-          DMG_URL=$(python3 -c "
-import json, sys
-d = json.loads(sys.stdin.read())
-assets = d.get('assets', [])
-dmg = next((a['browser_download_url'] for a in assets if a['name'].endswith('.dmg')), '')
-print(dmg)
-" <<< "$LATEST")
+          DMG_URL=$(python3 -c "import json,sys; d=json.loads(sys.stdin.read()); assets=d.get('assets',[]); dmg=next((a['browser_download_url'] for a in assets if a['name'].endswith('.dmg')),''); print(dmg)" <<< "$LATEST")
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "dmg_url=$DMG_URL" >> $GITHUB_OUTPUT
